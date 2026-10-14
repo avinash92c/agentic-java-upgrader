@@ -30,19 +30,34 @@ The work lives in `D:\Dev\workspaces\vscode\agentic-java-upgrader`. This is a gi
 The `extract_dependencies` node (formerly `read_pom`) is a tool-calling LLM step that returns structured output.
 
 - **Tools**: `read_file` and `list_files`, confined to the project. The LLM starts at the root `pom.xml` and follows `<modules>` into every module POM.
-- **Output format** (TBD; will change):
+- **Output format** (TBD; may change): a JSON object keyed by project/module, each holding that POM's dependency list. A single-module project has one key; a multi-module project has one key for the root plus one per module.
   ```json
-  [
-    { "group": "<group-id>", "artifact": "<artifact-id>", "version": "<version>" }
-  ]
+  {
+    "<project-name/module-name>": [
+      { "group": "<group-id>", "artifact": "<artifact-id>", "version": "<version>" }
+    ]
+  }
   ```
-- **What goes in**: dependencies that have a version tag, the `<parent>` and BOM imports (`<dependencyManagement>` entries with `<scope>import</scope>`). Not included in v1: dependencies without a version tag, plugins. The project's own modules (internal parents, inter-module dependencies at `${project.version}`) are left out.
+  Example (multi-module):
+  ```json
+  {
+    "shop-parent": [
+      { "group": "org.springframework.boot", "artifact": "spring-boot-starter-parent", "version": "3.2.5" },
+      { "group": "com.fasterxml.jackson", "artifact": "jackson-bom", "version": "2.17.0" }
+    ],
+    "shop-api":  [ { "group": "org.mapstruct", "artifact": "mapstruct", "version": "1.5.5.Final" } ],
+    "shop-core": [ { "group": "com.google.guava", "artifact": "guava", "version": "33.0.0-jre" } ]
+  }
+  ```
+- **Key** = the POM's own `<artifactId>` (the project name for a single-module project, the module name otherwise). Keys are unique within a reactor build, and they map back to the module's `pom.xml` path for editing.
+- **What goes in**, under the POM where it is declared: the `<parent>`, BOM imports (`<dependencyManagement>` entries with `<scope>import</scope>`), and dependencies that have a version tag, including versioned `<dependencyManagement>` entries (in multi-module projects most versions sit in the root's dependency management). Not included in v1: dependencies without a version tag, plugins. The project's own modules (internal parents, inter-module dependencies at `${project.version}`) are left out. A module with nothing to list has an empty array.
 - **`version`** is the resolved value: `${spring.version}` is resolved by the LLM to `6.1.2`, following properties up through parent POMs in the project.
-- **Multi-module**: one entry per `group:artifact`, even when several modules declare it.
-- The schema is one Pydantic model (`state.Dependency`) passed to the model as structured output (`with_structured_output` / the ReAct agent's `response_format`), which works with all four providers. Output that doesn't match the schema is retried once, then the run stops with a message (no changes have been made at that point).
-- The list is written to the session folder as `dependencies.json` and is included in the report.
-- **Order** for the loop: parent first, then BOM imports, then dependencies.
-- **Applying an upgrade** stays deterministic: `pom.py` finds where that `group:artifact`'s version is defined (literal tag or `${property}`, in the root or a module POM) and edits it there. If it can't find a definition, the entry is recorded as "could not apply" and the loop moves on. A property shared by several artifacts is changed once, to the version for the first artifact in order; the others are recorded as "shared property, set by <artifact>".
+- **The same artifact can appear under several modules**, each with the version that module declares.
+- The schema is a Pydantic model (`state.DependencyMap`: `dict[str, list[Dependency]]`) passed to the model as structured output (`with_structured_output` / the ReAct agent's `response_format`), which works with all four providers. Output that doesn't match the schema is retried once, then the run stops with a message (no changes have been made at that point).
+- The map is written to the session folder as `dependencies.json`, and the report groups upgrades by the same keys.
+- **Loop order**: root project first, then modules in `<modules>` order; within each, parent, then BOM imports, then dependencies.
+- **Version lookups** are cached per `group:artifact`, so an artifact listed under several modules is looked up once.
+- **Applying an upgrade** stays deterministic: for each entry, `pom.py` finds where that module's version for the `group:artifact` is defined (literal tag in the module POM, or a `${property}` in the module or an inherited parent POM in the project) and edits it there. If an earlier entry already changed that same location (shared property, or a property inherited from the root), the entry is recorded as "applied via <key>/<artifact>" and nothing is edited twice. If no definition is found, the entry is recorded as "could not apply" and the loop moves on. A property shared by several artifacts is changed once, to the version for the first artifact in loop order.
 - Prompts: `extract_system.md`, `extract_task.md`.
 
 ## Configuration file
@@ -157,7 +172,7 @@ start -> preflight -> baseline_build -> extract_dependencies (LLM)
 ```
 
 - **Deterministic control**: the dependency loop, build runs, classification and the attempt counter are graph logic, not LLM decisions. The LLM produces the list; it does not decide what gets upgraded.
-- **Upgrade unit**: one entry of the extracted list, applied at the `<version>` location `pom.py` finds for it (see "Dependency extraction"). Order: parent, BOM imports, then dependencies.
+- **Upgrade unit**: one entry under one project/module key, applied at the `<version>` location `pom.py` finds for it (see "Dependency extraction"). Order: root then modules; within each, parent, BOM imports, then dependencies.
 - **Baseline build** runs before any change; if it already fails, the run stops and says so (nothing can be attributed to the upgrades otherwise).
 - **On defer**, the project keeps all applied upgrades and the LLM's edits so the user can continue manually; the report lists every upgrade, the remaining errors, the defer reason (environment or attempts exhausted) and each attempt. A full undo is `git restore .` on the user's clean branch.
 - **Guard after repair**: the graph re-checks that the target versions are still in the POM, so the LLM cannot "fix" a build by quietly reverting an upgrade.
@@ -171,7 +186,7 @@ The LLM always works through **tool calls**: it is given a task and a set of too
 
 | Step | Graph node | What the LLM does | Output | Prompts |
 |---|---|---|---|---|
-| 1. Dependency extraction | `extract_dependencies` | Reads the root and module POMs; resolves `${property}` versions; lists parent, BOM imports and versioned dependencies | `[{group, artifact, version}]` (structured output, `state.Dependency`) | `extract_system.md`, `extract_task.md` |
+| 1. Dependency extraction | `extract_dependencies` | Reads the root and module POMs; resolves `${property}` versions; lists parent, BOM imports and versioned dependencies | `{<project/module>: [{group, artifact, version}]}` (structured output, `state.DependencyMap`) | `extract_system.md`, `extract_task.md` |
 | 2. Build repair | `repair_agent` | Reads the build errors, finds the affected code, checks the new library API, edits files to fix the build | Edited files plus a short summary of what it changed and why | `repair_system.md`, `repair_task.md` |
 
 ### What the LLM does not do (deterministic code does)
@@ -222,7 +237,7 @@ src/java_upgrade_agent/
   prompts.py                      prompt loader: user prompts_dir over built-ins, placeholder check
   prompts/                        built-in prompt files (extract_*.md, repair_*.md)
   extract.py                      dependency extraction agent: tools, prompt, structured output
-  state.py                        graph state + models (Dependency (the list format), UpgradeUnit, Candidate, BuildError, FailureKind, Attempt, UpgradeResult)
+  state.py                        graph state + models (Dependency, DependencyMap (the extraction format), UpgradeUnit, Candidate, BuildError, FailureKind, Attempt, UpgradeResult)
   graph.py                        StateGraph wiring and conditional edges
   nodes.py                        node functions above, including classify_failure
   repair.py                       repair agent construction and prompt
@@ -264,6 +279,6 @@ Dependencies: `langgraph`, `langchain`, `langchain-core`, `httpx`, `lxml`, `pyda
 ## Verification
 
 - `poetry run pytest`: version ordering and stable filter, POM read/edit (direct version, property version, shared property, no version, parent, BOM import), metadata client for both sources, Maven log parsing, failure classification on each recorded log, preflight refusing a dirty tree, LLM factory building the right class per provider (and a clear error when an extra is missing), API keys redacted, config validation (bad values, `data_dir` inside the project), prompt override and fallback plus the missing-placeholder error, session folder contents and a report rebuilt from a recorded `events.jsonl`.
-- Extraction tests with a fake chat model: tool calls are confined to the project; output is parsed into the `Dependency` schema; malformed output is retried once, then stops the run; an entry `pom.py` can't locate is recorded as "could not apply".
+- Extraction tests with a fake chat model: tool calls are confined to the project; output is parsed into the `DependencyMap` schema (single-module: one key; multi-module: root plus every module, same artifact under two modules); an inherited property is edited once and the second entry is recorded as "applied via"; malformed output is retried once, then stops the run; an entry `pom.py` can't locate is recorded as "could not apply".
 - Graph tests with a fake chat model: nothing outdated; build passes first time; fails then repaired; attempts exhausted and deferred with a report; environment failure deferred with no LLM call; LLM-introduced bad artifact goes back to the agent; LLM reverting a version is caught by the guard.
 - End to end: `poetry run java-upgrade-agent run tests/fixtures/sample-boot-app --config tests/fixtures/central.toml` against real Maven Central; check `dependencies.json` against the fixture's POMs by hand, the report, and that `git restore .` in the fixture returns it to the starting state. Repeat the repair path with at least one cloud provider and one Ollama model that supports tools.
