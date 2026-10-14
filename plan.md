@@ -2,7 +2,7 @@
 
 ## Context
 
-The workspace `D:\Dev\workspaces\vscode\java-upgrade-agent` holds only a bare `pyproject.toml` (Poetry, Python >=3.14, no dependencies, not a git repo). v1 implements the user's flow diagram: read the project's `pom.xml`, find newer versions, apply them one at a time, build, let an LLM repair build failures up to 3 times, then report. The fuller spec (tree diff, class-file check, vulnerability scan, commit handoff) is later work.
+The work lives in `D:\Dev\workspaces\vscode\agentic-java-upgrader`. This is a git repo on `main` with `LICENSE`, `README.md`, `plan.md` and the flow diagram (`agent-flow-v1.drawio` / `.png`), and no code or `pyproject.toml` yet. v1 implements the diagram: read the project's `pom.xml`, find newer versions, apply them one at a time, build, let an LLM repair build failures up to 3 times, then report. The fuller spec (tree diff, class-file check, vulnerability scan, commit handoff) is later work.
 
 ## Decisions (from the user)
 
@@ -17,6 +17,55 @@ The workspace `D:\Dev\workspaces\vscode\java-upgrade-agent` holds only a bare `p
 - **`pom.xml` only** for v1; Gradle later.
 - **Defer = stop the process and exit with a message.** No partial undo, no resume; the user restarts the flow from the beginning.
 - **Credentials live in the agent's own config file, never read from `~/.m2/settings.xml`**, and must not reach the LLM. A better approach for secrets is deferred.
+- **Build failures are classified before retry** (decided 2026-10-14): only code failures go to the LLM; environment failures defer straight away. See below.
+- **LLM provider is configurable** (decided 2026-10-14): Claude (Anthropic), ChatGPT (OpenAI), Gemini (Google) or Ollama, each through its own LangChain integration. See "LLM provider".
+- **One config file holds every agent setting** and is passed in at start (`--config`): repository, LLM, build, retries, data directory, prompts directory.
+- **Each run is a session**: a session ID is generated at start, and all session data (logs, build output, attempts, edits) goes under a configurable data directory. The final report is built from that session data.
+- **Prompts live as files in a folder**, one per LLM step, so they can be edited without rebuilding the agent.
+- **v2**: `SKILL.md`-style skill files (for example per-library migration guides) loaded into the repair step for better fixes.
+
+## Configuration file
+
+TOML, loaded by `config.py` (pydantic-settings, validated at startup; secrets overridable by env vars):
+
+```toml
+[repository]   type = "central" | "artifactory"; url; api_key | username/password
+[llm]          provider; model; temperature; max_tokens; timeout; api_key; base_url; extra = { ... }   # extra passed to the chat model as-is
+[build]        command = "mvn -B -DskipTests package"; jdk_home; run_tests = false
+[agent]        max_retries = 3; data_dir = "~/.java-upgrade-agent"; prompts_dir = ""   # empty = built-in prompts
+```
+
+## Sessions and agent data
+
+- At start: `session_id = <UTC timestamp>-<6 hex chars>` (sorts by time and stays unique). It is printed to the console and in the report.
+- Session folder `<data_dir>/sessions/<session_id>/`:
+  - `agent.log`: the run log (also at console level through `rich`).
+  - `config.json`: the effective config with secrets removed.
+  - `events.jsonl`: one record per step (preflight result, each lookup and apply, each build, classification, each repair attempt with tool calls and file edits, defer reason).
+  - `builds/NN-<baseline|post|attempt-k>.log`: full Maven output (redacted).
+  - `report.md`: the final report.
+- `report.py` builds the report by reading `events.jsonl`, not from in-memory state, so a run that crashes still leaves enough to explain what happened.
+- Everything written is redacted (same redaction step as for the LLM).
+- `data_dir` must be outside the project being upgraded; preflight refuses a path inside it, because it would dirty the git tree and the LLM file tools could read it.
+- No resume in v1 (as decided); old sessions are kept until the user deletes them.
+
+## Prompts
+
+- Built-in defaults ship in the package at `src/java_upgrade_agent/prompts/`. Setting `agent.prompts_dir` points the agent at a user folder; a file there replaces the built-in file with the same name, and missing files fall back to the built-in ones.
+- One file per LLM step. In v1 only the repair step uses the LLM: `repair_system.md` (role, rules: don't revert upgrades, use tools, minimal edits) and `repair_task.md` (template filled with upgrades applied, errors, earlier attempts).
+- Templates use `{placeholder}` fields; at startup the loader checks that each file has the fields its step needs and stops with a clear message if not.
+- The prompt files used, with their path and hash, are recorded in the session's `events.jsonl`.
+- The v2 skills hook goes here: the loader will add relevant skill files to the repair prompt.
+
+## LLM provider
+
+- Config section `[llm]`: `provider` (`anthropic` | `openai` | `google` | `ollama`), `model`, optional `temperature`, `api_key` (cloud providers) and `base_url` (Ollama, default `http://localhost:11434`; can also point OpenAI at a compatible endpoint).
+- `llm.py` maps the provider to its LangChain chat model: `ChatAnthropic` (`langchain-anthropic`), `ChatOpenAI` (`langchain-openai`), `ChatGoogleGenerativeAI` (`langchain-google-genai`), `ChatOllama` (`langchain-ollama`). The repair agent only sees a `BaseChatModel` with tools bound, so nothing else depends on the provider.
+- Provider packages are Poetry **extras** (`anthropic`, `openai`, `google`, `ollama`, `all`). If the chosen provider's package is missing, the agent exits at startup with the `pip`/`poetry` command that installs it.
+- API keys follow the credential rules: from the config file, overridable by the standard env vars (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`), never in state, prompts or the report, and added to the redaction list.
+- **Tool calling is required.** Preflight makes one small tool-call probe to the configured model (after the git checks, before the baseline build). A model that can't call tools (common with smaller Ollama models) or a rejected key stops the run before any change is made.
+- Default: `anthropic` with the current Claude model id (checked with the `claude-api` skill at implementation). No model ids are hard-coded for the other providers; the user sets `model`.
+- The report names the provider and model used. The README notes that cloud providers receive the project's source excerpts, while Ollama keeps everything on the machine.
 
 ## Credentials and the LLM
 
@@ -31,24 +80,29 @@ The workspace `D:\Dev\workspaces\vscode\java-upgrade-agent` holds only a bare `p
 | Condition | Uses LLM retries? |
 |---|---|
 | Not a Git repo, or working tree not clean | no |
+| LLM provider package missing, key rejected, or model can't call tools | no |
 | Pre-upgrade build fails | no |
+| Post-upgrade build fails with an environment error (classified) | no |
 | Post-upgrade build fails and attempts are exhausted | yes |
 
 Every exit after upgrades were applied prints what was changed and the command to return to the starting state (`git restore .`), since a restart requires a clean tree.
 
 **Version lookup failures never stop the run.** Whatever the cause (not found, unreachable source, rejected credentials, timeout), that dependency is left unchanged, the reason is recorded, and the loop moves on. The report has a "could not check" section listing each one with its error so the user can act on it. If every lookup fails, no upgrades are applied and the report says so.
 
-## OPEN: build failures the LLM cannot fix
+## Build failure classification (decided)
 
-**Unresolved, user will come back to this.** Some post-upgrade build failures are not code problems: an artifact that cannot be downloaded, a 401/403 from the repository, a network or proxy error, an internal library that needs `settings.xml` configuration. Sending these to the LLM wastes all retry attempts on something it cannot change. The proposed fix is a check between "build failed" and "retry": classify the failure from the Maven output, and send only compilation errors to the LLM while the rest go straight to defer. **Until this is decided, v1 sends every post-upgrade build failure through the retry loop.**
+A `classify_failure` step sits between "build failed" and "attempts left?". It reads the Maven log (`tools/maven.py`) and returns `code` or `environment`.
+
+- **environment**, which defers straight away with no LLM call: dependency resolution failures (`Could not resolve dependencies`, `Could not transfer artifact`, `Could not find artifact`, `Non-resolvable parent POM`), HTTP 401/403/407 and `Unauthorized`, network and TLS errors (`UnknownHostException`, `Connection refused`/`timed out`, `PKIX path building failed`), and plugin resolution failures.
+- **code**, which goes to `repair_agent`: compiler errors (`COMPILATION ERROR`, `[ERROR] …/X.java:[l,c]`), test-compile errors, and anything not matched above. Unknown failures go to the LLM because the retry limit caps the cost.
+- **Exception**: a resolution error for an artifact or version that the repair agent itself added or changed in the previous attempt counts as `code` and goes back to the agent, since the LLM introduced it and can fix it.
+- On an environment defer, the report gives the category, a redacted excerpt of the log and a hint (check repository credentials, network/proxy, or `settings.xml` for internal libraries).
 
 ## OPEN: mvnrepository.com as a version source
 
-**Unresolved, user will come back to this.** Plain requests to `mvnrepository.com/artifact/<group>/<artifact>` return HTTP 403 with a Cloudflare bot challenge (tested from this machine). Until it is solved, v1 reads `maven-metadata.xml` from the selected repository (works for both Central and Artifactory). Version lookup sits behind a `VersionSource` interface so a mvnrepository source can be added without touching the flow.
+**Unresolved, kept as open work.** Plain requests to `mvnrepository.com/artifact/<group>/<artifact>` return HTTP 403 with a Cloudflare bot challenge. Until it is solved, v1 reads `maven-metadata.xml` from the selected repository (works for both Central and Artifactory). Version lookup sits behind a `VersionSource` interface so a mvnrepository source can be added without touching the flow.
 
 ## Version and retry rules
-
-All settled:
 
 1. **Major versions: applied.** The agent always goes to the newest stable release, including a new major (Spring Boot 3 -> 4, Hibernate 5 -> 6). The report marks which upgrades crossed a major version.
 2. **Parent and BOM imports: upgraded, and done first**, because that is what moves the managed dependencies.
@@ -66,18 +120,22 @@ start -> preflight -> baseline_build -> read_pom
                      +-- apply if outdated ----+                            v
                                                               [nothing applied] -> report -> end
                                                                             |
-                                                                          build <-----------+
-                                                                     pass |   | fail        |
-                                                           report <-------+   v             |
-                                                             |          attempts left? -yes-> repair_agent
-                                                            end               | no
-                                                                        defer_to_user -> report -> end
+                                                                          build <---------------+
+                                                                     pass |   | fail            |
+                                                           report <-------+   v                 |
+                                                                       classify_failure         |
+                                                                   environment |   | code       |
+                                                                               |   v            |
+                                                                               | attempts left? -yes-> repair_agent
+                                                                               |   | no
+                                                                               v   v
+                                                                         defer_to_user -> report -> end
 ```
 
-- **Deterministic control**: the dependency loop, build runs and the attempt counter are graph logic, not LLM decisions.
+- **Deterministic control**: the dependency loop, build runs, classification and the attempt counter are graph logic, not LLM decisions.
 - **Upgrade unit**: one `<version>` location. A `${property}` shared by several dependencies is one unit. Order: parent, BOM imports, then dependencies.
 - **Baseline build** runs before any change; if it already fails, the run stops and says so (nothing can be attributed to the upgrades otherwise).
-- **On defer**, the project keeps all applied upgrades and the LLM's edits so the user can continue manually; the report lists every upgrade, the remaining errors and each attempt. A full undo is `git restore .` on the user's clean branch.
+- **On defer**, the project keeps all applied upgrades and the LLM's edits so the user can continue manually; the report lists every upgrade, the remaining errors, the defer reason (environment or attempts exhausted) and each attempt. A full undo is `git restore .` on the user's clean branch.
 - **Guard after repair**: the graph re-checks that the target versions are still in the POM, so the LLM cannot "fix" a build by quietly reverting an upgrade.
 - **Build command**: `mvn -B -DskipTests package` (compiles main and test code, runs no tests). Configurable; the report states that tests were not run.
 
@@ -99,48 +157,54 @@ start -> preflight -> baseline_build -> read_pom
 ## Layout
 
 ```
-pyproject.toml                    add deps, [project.scripts] java-upgrade-agent
+pyproject.toml                    new: Poetry, deps, [project.scripts] java-upgrade-agent
 src/java_upgrade_agent/
   cli.py                          typer: `run [project-path] --config <file>`; prompts for the project path if omitted
-  config.py                       pydantic-settings, loaded from the passed file: repository (central|artifactory), Artifactory URL/token, max_retries=3, build_command, jdk_home, model
-  state.py                        graph state + models (UpgradeUnit, Candidate, BuildError, Attempt, UpgradeResult)
+  config.py                       pydantic-settings, loaded from the passed file (see "Configuration file")
+  llm.py                          provider -> LangChain chat model factory; missing-extra message; tool-call probe
+  session.py                      session id, session folder, logging setup, events.jsonl writer
+  prompts.py                      prompt loader: user prompts_dir over built-ins, placeholder check
+  prompts/                        built-in prompt files (repair_system.md, repair_task.md)
+  state.py                        graph state + models (UpgradeUnit, Candidate, BuildError, FailureKind, Attempt, UpgradeResult)
   graph.py                        StateGraph wiring and conditional edges
-  nodes.py                        node functions above
+  nodes.py                        node functions above, including classify_failure
   repair.py                       repair agent construction and prompt
   tools/
     pom.py                        read parent/BOM/dependencies/properties; resolve ${property}; in-place version edit (lxml, formatting kept)
     versions.py                   Maven version ordering, stable filter
     repo.py                       VersionSource interface; maven-metadata.xml client for Central and Artifactory
-    maven.py                      run the build, capture log, parse compiler errors
+    maven.py                      run the build, capture log, parse compiler errors, classify failure (code | environment)
     redact.py                     strip secrets from logs before they reach the LLM
     gitops.py                     repo/clean-tree checks, diff
     files.py                      sandboxed read/list/search/edit
     library.py                    javap inspection, javadoc/sources JAR lookup
-  report.py                       markdown report: per upgrade before/after, result, files changed, attempts; skipped (managed, already latest)
+  report.py                       markdown report built from the session's events.jsonl: per upgrade before/after, result, files changed, attempts, defer reason; skipped (managed, already latest)
 tests/
   fixtures/sample-boot-app/       small Spring Boot Maven project with outdated dependencies
+  fixtures/maven-logs/            recorded Maven outputs: compile error, 401, artifact not found, unknown host, mixed
   test_*.py                       per tools module; graph tests with a fake chat model
 ```
 
-Dependencies: `langgraph`, `langchain`, `langchain-anthropic`, `httpx`, `lxml`, `pydantic-settings`, `typer`, `rich`; dev: `pytest`, `respx`, `ruff`.
+Dependencies: `langgraph`, `langchain`, `langchain-core`, `httpx`, `lxml`, `pydantic-settings`, `typer`, `rich`; extras: `langchain-anthropic`, `langchain-openai`, `langchain-google-genai`, `langchain-ollama`; dev: `pytest`, `respx`, `ruff`.
 
 ## Build order
 
-1. Scaffold: `git init` in the agent repo, package layout, dependencies, config, CLI skeleton, fixture project.
+1. Replace the repo's `plan.md` with this plan. Scaffold in this repo (git already initialised): `pyproject.toml`, package layout, dependencies, config, `session.py`, CLI skeleton, example config file, fixture project, `.gitignore`.
 2. `pom.py`, `versions.py`, `repo.py` with unit tests (recorded metadata responses).
-3. `maven.py`, `gitops.py`; preflight and baseline build.
-4. Graph: dependency loop, `apply_version`, single `build`, plus `report.py` (no LLM yet: a failed build goes straight to defer).
-5. `files.py`, `library.py`, `repair.py`: tool-calling repair agent with attempt history and the 3-attempt limit.
+3. `maven.py` (including `classify_failure`), `gitops.py`; preflight and baseline build.
+4. Graph: dependency loop, `apply_version`, single `build`, `classify_failure`, plus `report.py` (no LLM yet: a failed build goes straight to defer).
+5. `llm.py` (provider factory + preflight probe), `prompts.py` + built-in prompts, `files.py`, `library.py`, `repair.py`: tool-calling repair agent with attempt history and the 3-attempt limit.
 6. End-to-end run on the fixture.
 
 ## Things to settle during implementation
 
 - **JDK**: this machine has only Java 27 and `JAVA_HOME` is unset. Projects targeting Java 17/21 need a matching JDK, passed as `jdk_home`; preflight warns when the JDK is newer than the project's configured release.
 - **Python 3.14 wheels** for `lxml` and LangGraph: confirmed at `poetry add`; if one is missing, relax `requires-python` to `>=3.12`.
-- **Model id**: from config; default set after checking the `claude-api` skill.
+- **Model id**: from config; Anthropic default set after checking the `claude-api` skill.
+- **Python 3.14 wheels** for the provider extras (notably `langchain-google-genai`'s dependencies): checked at `poetry add` along with the rest.
 
 ## Verification
 
-- `poetry run pytest`: version ordering and stable filter, POM read/edit (direct version, property version, shared property, no version, parent, BOM import), metadata client for both sources, Maven log parsing, preflight refusing a dirty tree.
-- Graph tests with a fake chat model: nothing outdated; build passes first time; fails then repaired; attempts exhausted and deferred with a report; LLM reverting a version is caught by the guard.
-- End to end: `poetry run java-upgrade-agent run tests/fixtures/sample-boot-app --config tests/fixtures/central.toml` against real Maven Central; check the report and that `git restore .` in the fixture returns it to the starting state.
+- `poetry run pytest`: version ordering and stable filter, POM read/edit (direct version, property version, shared property, no version, parent, BOM import), metadata client for both sources, Maven log parsing, failure classification on each recorded log, preflight refusing a dirty tree, LLM factory building the right class per provider (and a clear error when an extra is missing), API keys redacted, config validation (bad values, `data_dir` inside the project), prompt override and fallback plus the missing-placeholder error, session folder contents and a report rebuilt from a recorded `events.jsonl`.
+- Graph tests with a fake chat model: nothing outdated; build passes first time; fails then repaired; attempts exhausted and deferred with a report; environment failure deferred with no LLM call; LLM-introduced bad artifact goes back to the agent; LLM reverting a version is caught by the guard.
+- End to end: `poetry run java-upgrade-agent run tests/fixtures/sample-boot-app --config tests/fixtures/central.toml` against real Maven Central; check the report and that `git restore .` in the fixture returns it to the starting state. Repeat the repair path with at least one cloud provider and one Ollama model that supports tools.

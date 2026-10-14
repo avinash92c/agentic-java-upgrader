@@ -1,0 +1,233 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Page-1" id="tildQStyUS7SsFrlriUx">
+    <mxGraphModel dx="2904" dy="1103" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-40" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="J2QZ5_GT64bmK0tWIVrP-39">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-1" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="start" vertex="1">
+          <mxGeometry height="80" width="120" x="10" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;roundedPerimeter=1;" value="Read dependencies file&lt;br&gt;(pom.xml)" vertex="1">
+          <mxGeometry height="60" width="120" x="320" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;roundedPerimeter=1;" value="run maven build to look for compilation issues or build issues caused by incompatible dependencies" vertex="1">
+          <mxGeometry height="150" width="180" x="290" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-14" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="J2QZ5_GT64bmK0tWIVrP-13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-17" connectable="0" parent="J2QZ5_GT64bmK0tWIVrP-14" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Pass" vertex="1">
+          <mxGeometry relative="1" x="-0.2" y="4" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-16" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-18" connectable="0" parent="J2QZ5_GT64bmK0tWIVrP-16" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Fail" vertex="1">
+          <mxGeometry relative="1" x="-0.1714" y="3" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-11" parent="1" style="rhombus;whiteSpace=wrap;html=1;shapeInside=1;" value="Build Success" vertex="1">
+          <mxGeometry height="80" width="80" x="340" y="860" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-12" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-37" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.564;entryY=0.017;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-36">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="768" y="900" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-13" parent="1" style="rounded=1;whiteSpace=wrap;html=1;roundedPerimeter=1;" value="provide upgrade report to user. Changes done as part of upgrade. dependencies before and after.&lt;br&gt;&lt;br&gt;In case of any failures. report work done so far (upgrades), issues encountered leading to failure and exit&lt;div&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="130" width="220" x="500" y="860" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-15" parent="1" style="rounded=1;whiteSpace=wrap;html=1;roundedPerimeter=1;" value="identify the issue from build error and try to read the file to fix the issue and fix it using llm" vertex="1">
+          <mxGeometry height="60" width="170" x="30" y="880" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-53" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" target="J2QZ5_GT64bmK0tWIVrP-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-55" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-31">
+          <mxGeometry relative="1" x="-0.0256" as="geometry">
+            <Array as="points">
+              <mxPoint x="90" y="1000" />
+              <mxPoint x="90" y="1060" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-56" connectable="0" parent="J2QZ5_GT64bmK0tWIVrP-55" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Retry Threshold Reached" vertex="1">
+          <mxGeometry relative="1" x="-0.3009" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-64" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-15">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="305" y="910" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-65" connectable="0" parent="J2QZ5_GT64bmK0tWIVrP-64" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Retry" vertex="1">
+          <mxGeometry relative="1" x="0.1467" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-23" parent="1" style="rhombus;whiteSpace=wrap;html=1;shapeInside=1;" value="&lt;br&gt;Do Retry&lt;br&gt;(retry fix attempt counter tracks attempts)" vertex="1">
+          <mxGeometry height="100" width="150" x="230" y="940" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-38" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-31" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-31" parent="1" style="rounded=1;whiteSpace=wrap;html=1;roundedPerimeter=1;" value="defer to user. Let user manually fix" vertex="1">
+          <mxGeometry height="60" width="120" x="365" y="1030" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-36" parent="1" style="rounded=1;whiteSpace=wrap;html=1;roundedPerimeter=1;" value="End" vertex="1">
+          <mxGeometry height="60" width="120" x="700" y="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-43" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-39" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-42">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-39" parent="1" style="rounded=1;whiteSpace=wrap;html=1;roundedPerimeter=1;" value="ask for project directory path to run the upgrade and builds" vertex="1">
+          <mxGeometry height="60" width="120" x="200" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-57" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-42" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-59">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-42" parent="1" style="rounded=1;whiteSpace=wrap;html=1;roundedPerimeter=1;" value="try to build so that pre-upgrade application build succeeds" vertex="1">
+          <mxGeometry height="60" width="120" x="365" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-60" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-59" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-62" connectable="0" parent="J2QZ5_GT64bmK0tWIVrP-60" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Yes" vertex="1">
+          <mxGeometry relative="1" x="-0.1748" y="-3" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-111" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-59" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-110">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="810" y="130" />
+              <mxPoint x="810" y="530" />
+              <mxPoint x="760" y="530" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-59" parent="1" style="rhombus;whiteSpace=wrap;html=1;shapeInside=1;" value="build success" vertex="1">
+          <mxGeometry height="80" width="80" x="570" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-76" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-74" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1.02;entryY=0.556;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-8">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="570" y="743.1" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-77" connectable="0" parent="J2QZ5_GT64bmK0tWIVrP-76" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Yes" vertex="1">
+          <mxGeometry relative="1" x="0.5382" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-78" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-74" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-13">
+          <mxGeometry relative="1" x="-0.001" as="geometry">
+            <Array as="points">
+              <mxPoint x="630" y="745" />
+              <mxPoint x="610" y="745" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-79" connectable="0" parent="J2QZ5_GT64bmK0tWIVrP-78" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="No" vertex="1">
+          <mxGeometry relative="1" x="-0.1959" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-74" parent="1" style="rhombus;whiteSpace=wrap;html=1;shapeInside=1;" value="Any Upgrades performed" vertex="1">
+          <mxGeometry height="80" width="80" x="590" y="337.5" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-80" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Track what all dependencies are upgrades for report and use that list here for making decision" vertex="1">
+          <mxGeometry height="30" width="150" x="650" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-87" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-81" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-82">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-81" parent="1" style="rounded=1;whiteSpace=wrap;html=1;roundedPerimeter=1;" value="Pick Next Dependency (pick only dependencies which have version tag)" vertex="1">
+          <mxGeometry height="60" width="140" x="140" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-89" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-82" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-83">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-82" parent="1" style="rounded=1;whiteSpace=wrap;html=1;roundedPerimeter=1;" value="Check in Jfrog if dependency version is new or old" vertex="1">
+          <mxGeometry height="60" width="120" x="160" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-90" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-83" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-84">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-91" connectable="0" parent="J2QZ5_GT64bmK0tWIVrP-90" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Yes" vertex="1">
+          <mxGeometry relative="1" x="-0.5567" y="-2" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-113" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-83" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-85">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-114" connectable="0" parent="J2QZ5_GT64bmK0tWIVrP-113" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="No" vertex="1">
+          <mxGeometry relative="1" x="-0.102" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-83" parent="1" style="rhombus;whiteSpace=wrap;html=1;shapeInside=1;" value="Is Old Version" vertex="1">
+          <mxGeometry height="80" width="80" x="180" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-109" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-84" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-85">
+          <mxGeometry relative="1" x="-0.0215" as="geometry">
+            <Array as="points">
+              <mxPoint x="322.5" y="610" />
+              <mxPoint x="322.5" y="425" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-84" parent="1" style="rounded=1;whiteSpace=wrap;html=1;roundedPerimeter=1;" value="Find latest version and upgrade in pom.xml" vertex="1">
+          <mxGeometry height="60" width="120" x="160" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-105" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-85" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-81">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-106" connectable="0" parent="J2QZ5_GT64bmK0tWIVrP-105" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Yes" vertex="1">
+          <mxGeometry relative="1" x="0.0487" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-107" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-85" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="J2QZ5_GT64bmK0tWIVrP-74">
+          <mxGeometry relative="1" x="0.4419" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-108" connectable="0" parent="J2QZ5_GT64bmK0tWIVrP-107" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="No" vertex="1">
+          <mxGeometry relative="1" x="-0.4925" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-85" parent="1" style="rhombus;whiteSpace=wrap;html=1;shapeInside=1;" value="has more dependencies" vertex="1">
+          <mxGeometry height="95" width="110" x="365" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-101" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="if its old find the new version from mvnrepository or jfrog artifactory.&lt;br&gt;&lt;span style=&quot;color: rgb(191, 191, 191); font-family: -apple-system, BlinkMacSystemFont, &amp;quot;Segoe UI&amp;quot;, Roboto, sans-serif; font-size: 13px; text-align: start; white-space: pre-wrap; background-color: rgb(18, 19, 20);&quot;&gt;parent and BOM first; only dependencies with a version tag; latest stable version, including new majors versions&lt;/span&gt;&lt;br&gt;&lt;br&gt;(allow user to configure settings for mavencentral or jfrog along with urls for jfrog and any apikeys or userauth details in a common config file)" vertex="1">
+          <mxGeometry height="30" width="260" x="-100" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-104" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.507;entryY=0.045;entryDx=0;entryDy=0;entryPerimeter=0;" target="J2QZ5_GT64bmK0tWIVrP-85">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-112" edge="1" parent="1" source="J2QZ5_GT64bmK0tWIVrP-110" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.9;entryY=0.033;entryDx=0;entryDy=0;" target="J2QZ5_GT64bmK0tWIVrP-36">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="J2QZ5_GT64bmK0tWIVrP-110" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Report Build fail reason" vertex="1">
+          <mxGeometry height="60" width="120" x="700" y="570" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
