@@ -2,7 +2,7 @@
 
 ## Context
 
-The work lives in `D:\Dev\workspaces\vscode\agentic-java-upgrader`. This is a git repo on `main` with `LICENSE`, `README.md`, `plan.md` and the flow diagram (`agent-flow-v1.drawio` / `.png`), and no code or `pyproject.toml` yet. v1 implements the diagram: read the project's `pom.xml`, find newer versions, apply them one at a time, build, let an LLM repair build failures up to 3 times, then report. The fuller spec (tree diff, class-file check, vulnerability scan, commit handoff) is later work.
+The work lives in `D:\Dev\workspaces\vscode\agentic-java-upgrader`. This is a git repo on `main` with `LICENSE`, `README.md`, `plan.md` and the flow diagram (`agent-flow-v1.drawio` / `.png`), and no code or `pyproject.toml` yet. v1 implements the diagram: have the LLM read the project's `pom.xml` files into a structured dependency list, find newer versions, apply them one at a time, build, let an LLM repair build failures up to 3 times, then report. The fuller spec (tree diff, class-file check, vulnerability scan, commit handoff) is later work.
 
 ## Decisions (from the user)
 
@@ -13,8 +13,9 @@ The work lives in `D:\Dev\workspaces\vscode\agentic-java-upgrader`. This is a gi
 - **Only upgrade what has a version tag.** Dependencies without one are managed by the parent/BOM and move when that is upgraded.
 - **Versions are looked up and applied one dependency at a time** (a loop in the graph); **the build runs once, after all upgrades are applied**.
 - **Build success = Maven build without running tests.** Running tests is left to the user (config switch available).
-- **LLM works through tool calls** (read POM, read Java classes, look up versions, consult javadocs) and is expected to fix build issues from documentation or its own knowledge.
-- **`pom.xml` only** for v1; Gradle later.
+- **LLM works through tool calls** (read POM, read Java classes, look up versions, consult javadocs) and is expected to fix build issues from documentation or its own knowledge. See "LLM scope and functions".
+- **The LLM builds the dependency list** (decided 2026-10-14): reading the POMs through tools, it produces a structured list (see "Dependency extraction"). The list is trusted as is: it drives the lookup/apply loop with no cross-check against a parser.
+- **`pom.xml` only** for v1, **including multi-module projects** (all modules are read); Gradle later.
 - **Defer = stop the process and exit with a message.** No partial undo, no resume; the user restarts the flow from the beginning.
 - **Credentials live in the agent's own config file, never read from `~/.m2/settings.xml`**, and must not reach the LLM. A better approach for secrets is deferred.
 - **Build failures are classified before retry** (decided 2026-10-14): only code failures go to the LLM; environment failures defer straight away. See below.
@@ -23,6 +24,26 @@ The work lives in `D:\Dev\workspaces\vscode\agentic-java-upgrader`. This is a gi
 - **Each run is a session**: a session ID is generated at start, and all session data (logs, build output, attempts, edits) goes under a configurable data directory. The final report is built from that session data.
 - **Prompts live as files in a folder**, one per LLM step, so they can be edited without rebuilding the agent.
 - **v2**: `SKILL.md`-style skill files (for example per-library migration guides) loaded into the repair step for better fixes.
+
+## Dependency extraction (LLM step)
+
+The `extract_dependencies` node (formerly `read_pom`) is a tool-calling LLM step that returns structured output.
+
+- **Tools**: `read_file` and `list_files`, confined to the project. The LLM starts at the root `pom.xml` and follows `<modules>` into every module POM.
+- **Output format** (TBD; will change):
+  ```json
+  [
+    { "group": "<group-id>", "artifact": "<artifact-id>", "version": "<version>" }
+  ]
+  ```
+- **What goes in**: dependencies that have a version tag, the `<parent>` and BOM imports (`<dependencyManagement>` entries with `<scope>import</scope>`). Not included in v1: dependencies without a version tag, plugins. The project's own modules (internal parents, inter-module dependencies at `${project.version}`) are left out.
+- **`version`** is the resolved value: `${spring.version}` is resolved by the LLM to `6.1.2`, following properties up through parent POMs in the project.
+- **Multi-module**: one entry per `group:artifact`, even when several modules declare it.
+- The schema is one Pydantic model (`state.Dependency`) passed to the model as structured output (`with_structured_output` / the ReAct agent's `response_format`), which works with all four providers. Output that doesn't match the schema is retried once, then the run stops with a message (no changes have been made at that point).
+- The list is written to the session folder as `dependencies.json` and is included in the report.
+- **Order** for the loop: parent first, then BOM imports, then dependencies.
+- **Applying an upgrade** stays deterministic: `pom.py` finds where that `group:artifact`'s version is defined (literal tag or `${property}`, in the root or a module POM) and edits it there. If it can't find a definition, the entry is recorded as "could not apply" and the loop moves on. A property shared by several artifacts is changed once, to the version for the first artifact in order; the others are recorded as "shared property, set by <artifact>".
+- Prompts: `extract_system.md`, `extract_task.md`.
 
 ## Configuration file
 
@@ -52,7 +73,9 @@ TOML, loaded by `config.py` (pydantic-settings, validated at startup; secrets ov
 ## Prompts
 
 - Built-in defaults ship in the package at `src/java_upgrade_agent/prompts/`. Setting `agent.prompts_dir` points the agent at a user folder; a file there replaces the built-in file with the same name, and missing files fall back to the built-in ones.
-- One file per LLM step. In v1 only the repair step uses the LLM: `repair_system.md` (role, rules: don't revert upgrades, use tools, minimal edits) and `repair_task.md` (template filled with upgrades applied, errors, earlier attempts).
+- One pair of files per LLM step. v1 has two LLM steps:
+  - dependency extraction: `extract_system.md` (what to include and exclude, resolve properties, follow modules) and `extract_task.md` (project root, module hints).
+  - repair: `repair_system.md` (role, rules: don't revert upgrades, use tools, minimal edits) and `repair_task.md` (template filled with upgrades applied, errors, earlier attempts).
 - Templates use `{placeholder}` fields; at startup the loader checks that each file has the fields its step needs and stops with a clear message if not.
 - The prompt files used, with their path and hash, are recorded in the session's `events.jsonl`.
 - The v2 skills hook goes here: the loader will add relevant skill files to the repair prompt.
@@ -60,7 +83,7 @@ TOML, loaded by `config.py` (pydantic-settings, validated at startup; secrets ov
 ## LLM provider
 
 - Config section `[llm]`: `provider` (`anthropic` | `openai` | `google` | `ollama`), `model`, optional `temperature`, `api_key` (cloud providers) and `base_url` (Ollama, default `http://localhost:11434`; can also point OpenAI at a compatible endpoint).
-- `llm.py` maps the provider to its LangChain chat model: `ChatAnthropic` (`langchain-anthropic`), `ChatOpenAI` (`langchain-openai`), `ChatGoogleGenerativeAI` (`langchain-google-genai`), `ChatOllama` (`langchain-ollama`). The repair agent only sees a `BaseChatModel` with tools bound, so nothing else depends on the provider.
+- `llm.py` maps the provider to its LangChain chat model: `ChatAnthropic` (`langchain-anthropic`), `ChatOpenAI` (`langchain-openai`), `ChatGoogleGenerativeAI` (`langchain-google-genai`), `ChatOllama` (`langchain-ollama`). Both LLM steps only see a `BaseChatModel` with tools bound (and, for extraction, structured output), so nothing else depends on the provider.
 - Provider packages are Poetry **extras** (`anthropic`, `openai`, `google`, `ollama`, `all`). If the chosen provider's package is missing, the agent exits at startup with the `pip`/`poetry` command that installs it.
 - API keys follow the credential rules: from the config file, overridable by the standard env vars (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`), never in state, prompts or the report, and added to the redaction list.
 - **Tool calling is required.** Preflight makes one small tool-call probe to the configured model (after the git checks, before the baseline build). A model that can't call tools (common with smaller Ollama models) or a rejected key stops the run before any change is made.
@@ -82,6 +105,7 @@ TOML, loaded by `config.py` (pydantic-settings, validated at startup; secrets ov
 | Not a Git repo, or working tree not clean | no |
 | LLM provider package missing, key rejected, or model can't call tools | no |
 | Pre-upgrade build fails | no |
+| Dependency extraction returns output that doesn't match the schema (after one retry) | no |
 | Post-upgrade build fails with an environment error (classified) | no |
 | Post-upgrade build fails and attempts are exhausted | yes |
 
@@ -111,7 +135,7 @@ A `classify_failure` step sits between "build failed" and "attempts left?". It r
 ## Flow (LangGraph)
 
 ```
-start -> preflight -> baseline_build -> read_pom
+start -> preflight -> baseline_build -> extract_dependencies (LLM)
                                            |
                      +-------------------> next_dependency -> [none left] --+
                      |                         |                            |
@@ -132,27 +156,59 @@ start -> preflight -> baseline_build -> read_pom
                                                                          defer_to_user -> report -> end
 ```
 
-- **Deterministic control**: the dependency loop, build runs, classification and the attempt counter are graph logic, not LLM decisions.
-- **Upgrade unit**: one `<version>` location. A `${property}` shared by several dependencies is one unit. Order: parent, BOM imports, then dependencies.
+- **Deterministic control**: the dependency loop, build runs, classification and the attempt counter are graph logic, not LLM decisions. The LLM produces the list; it does not decide what gets upgraded.
+- **Upgrade unit**: one entry of the extracted list, applied at the `<version>` location `pom.py` finds for it (see "Dependency extraction"). Order: parent, BOM imports, then dependencies.
 - **Baseline build** runs before any change; if it already fails, the run stops and says so (nothing can be attributed to the upgrades otherwise).
 - **On defer**, the project keeps all applied upgrades and the LLM's edits so the user can continue manually; the report lists every upgrade, the remaining errors, the defer reason (environment or attempts exhausted) and each attempt. A full undo is `git restore .` on the user's clean branch.
 - **Guard after repair**: the graph re-checks that the target versions are still in the POM, so the LLM cannot "fix" a build by quietly reverting an upgrade.
 - **Build command**: `mvn -B -DskipTests package` (compiles main and test code, runs no tests). Configurable; the report states that tests were not run.
 
-## LLM tools
+## LLM scope and functions
 
-`repair_agent` is a tool-calling agent (LangGraph prebuilt ReAct agent) given the new build errors, the upgrade being applied and the history of earlier attempts. Tools, all confined to the project directory:
+The LLM always works through **tool calls**: it is given a task and a set of tools, decides which tools to call, our Python code runs them and returns the results, and the loop continues until the model gives its answer (LangGraph prebuilt ReAct agent, `create_react_agent`, with the provider's chat model). It never gets the whole project pasted into a prompt.
 
-| Tool | Purpose |
-|---|---|
-| `read_pom` | parsed dependencies, properties, parent |
-| `read_file`, `list_files`, `search_code` | locate and read affected Java sources |
-| `edit_file`, `write_file` | apply a fix; every edit is recorded for the report |
-| `find_versions(group, artifact)` | stable versions from the selected repository |
-| `inspect_class(fqcn)` | `javap` on the upgraded JAR in `~/.m2`: the real signatures in the new version |
-| `read_library_docs(group, artifact, version, fqcn)` | javadoc/source from the artifact's `-javadoc.jar` / `-sources.jar` in the repository |
+### Where the LLM is used
 
-`find_versions` is the same function the `find_versions` graph node calls directly for the initial scan; exposing it as a tool lets the agent check companion artifacts during a repair (for example a relocated artifact ID).
+| Step | Graph node | What the LLM does | Output | Prompts |
+|---|---|---|---|---|
+| 1. Dependency extraction | `extract_dependencies` | Reads the root and module POMs; resolves `${property}` versions; lists parent, BOM imports and versioned dependencies | `[{group, artifact, version}]` (structured output, `state.Dependency`) | `extract_system.md`, `extract_task.md` |
+| 2. Build repair | `repair_agent` | Reads the build errors, finds the affected code, checks the new library API, edits files to fix the build | Edited files plus a short summary of what it changed and why | `repair_system.md`, `repair_task.md` |
+
+### What the LLM does not do (deterministic code does)
+
+- Look up versions, pick the latest stable one, or decide whether to upgrade (`repo.py`, `versions.py`).
+- Apply version upgrades to the POM (`pom.py`).
+- Run Maven, judge whether the build passed, or classify failures (`maven.py`).
+- Count attempts, decide to retry or defer, or end the run (graph edges).
+- Undo upgrades: after each repair the guard checks that every upgraded version is still in place.
+
+### Tools
+
+All tools are confined to the project directory (config file, `.env` and `settings.xml` refused), and every call is recorded in `events.jsonl`.
+
+| Tool | Purpose | Extraction | Repair |
+|---|---|:-:|:-:|
+| `list_files(path, pattern)` | list files, find module POMs and sources | yes | yes |
+| `read_file(path)` | read a POM or Java source | yes | yes |
+| `search_code(pattern)` | find usages of a class or method across the project | | yes |
+| `edit_file(path, old, new)` | targeted replacement; every edit recorded for the report | | yes |
+| `write_file(path, content)` | create or replace a file | | yes |
+| `find_versions(group, artifact)` | stable versions from the selected repository; same function the graph uses, so the agent can check companion or relocated artifacts (`javax` -> `jakarta`) | | yes |
+| `inspect_class(fqcn)` | `javap` on the upgraded JAR in `~/.m2`: the real signatures in the new version | | yes |
+| `read_library_docs(group, artifact, version, fqcn)` | javadoc/source from the artifact's `-javadoc.jar` / `-sources.jar` in the repository | | yes |
+
+### Inputs each step gets
+
+- **Extraction**: project root path, list of POM paths found, the include/exclude rules from the prompt.
+- **Repair**: redacted build errors, the applied upgrades (old -> new, major jump marked), earlier attempts with their edits and resulting errors, attempt number and limit.
+
+### Limits and rules
+
+- Knowledge sources: the tools above plus the model's own knowledge (e.g. known migration steps). No web access in v1; v2 adds skill files (`SKILL.md`-style migration guides) to the repair prompt.
+- Credentials and secrets never reach the LLM; build output is redacted first.
+- Repair may change other dependencies in `pom.xml` (add, swap, bump a companion) but not revert an upgraded version.
+- Repair does not run builds itself; the graph runs exactly one build after each attempt, so the attempt count stays meaningful.
+- **To confirm**: a per-step cap on tool calls (proposed `agent.max_tool_calls = 25`) so a model can't loop on reads; on hitting it, the attempt ends and the graph builds as usual.
 
 ## Layout
 
@@ -164,13 +220,14 @@ src/java_upgrade_agent/
   llm.py                          provider -> LangChain chat model factory; missing-extra message; tool-call probe
   session.py                      session id, session folder, logging setup, events.jsonl writer
   prompts.py                      prompt loader: user prompts_dir over built-ins, placeholder check
-  prompts/                        built-in prompt files (repair_system.md, repair_task.md)
-  state.py                        graph state + models (UpgradeUnit, Candidate, BuildError, FailureKind, Attempt, UpgradeResult)
+  prompts/                        built-in prompt files (extract_*.md, repair_*.md)
+  extract.py                      dependency extraction agent: tools, prompt, structured output
+  state.py                        graph state + models (Dependency (the list format), UpgradeUnit, Candidate, BuildError, FailureKind, Attempt, UpgradeResult)
   graph.py                        StateGraph wiring and conditional edges
   nodes.py                        node functions above, including classify_failure
   repair.py                       repair agent construction and prompt
   tools/
-    pom.py                        read parent/BOM/dependencies/properties; resolve ${property}; in-place version edit (lxml, formatting kept)
+    pom.py                        find where a group:artifact's version is defined across root and module POMs (literal or ${property}); in-place version edit (lxml, formatting kept); used by apply and the guard
     versions.py                   Maven version ordering, stable filter
     repo.py                       VersionSource interface; maven-metadata.xml client for Central and Artifactory
     maven.py                      run the build, capture log, parse compiler errors, classify failure (code | environment)
@@ -180,7 +237,7 @@ src/java_upgrade_agent/
     library.py                    javap inspection, javadoc/sources JAR lookup
   report.py                       markdown report built from the session's events.jsonl: per upgrade before/after, result, files changed, attempts, defer reason; skipped (managed, already latest)
 tests/
-  fixtures/sample-boot-app/       small Spring Boot Maven project with outdated dependencies
+  fixtures/sample-boot-app/       small multi-module Spring Boot Maven project with outdated dependencies (parent, BOM import, literal and property versions, a shared property)
   fixtures/maven-logs/            recorded Maven outputs: compile error, 401, artifact not found, unknown host, mixed
   test_*.py                       per tools module; graph tests with a fake chat model
 ```
@@ -192,9 +249,10 @@ Dependencies: `langgraph`, `langchain`, `langchain-core`, `httpx`, `lxml`, `pyda
 1. Replace the repo's `plan.md` with this plan. Scaffold in this repo (git already initialised): `pyproject.toml`, package layout, dependencies, config, `session.py`, CLI skeleton, example config file, fixture project, `.gitignore`.
 2. `pom.py`, `versions.py`, `repo.py` with unit tests (recorded metadata responses).
 3. `maven.py` (including `classify_failure`), `gitops.py`; preflight and baseline build.
-4. Graph: dependency loop, `apply_version`, single `build`, `classify_failure`, plus `report.py` (no LLM yet: a failed build goes straight to defer).
-5. `llm.py` (provider factory + preflight probe), `prompts.py` + built-in prompts, `files.py`, `library.py`, `repair.py`: tool-calling repair agent with attempt history and the 3-attempt limit.
-6. End-to-end run on the fixture.
+4. `llm.py` (provider factory + preflight probe), `prompts.py` + built-in prompts, `files.py` (read-only tools), `extract.py`: dependency extraction with structured output.
+5. Graph: extraction, dependency loop, `apply_version`, single `build`, `classify_failure`, plus `report.py` (no repair yet: a failed build goes straight to defer).
+6. `files.py` edit tools, `library.py`, `repair.py`: tool-calling repair agent with attempt history and the 3-attempt limit.
+7. End-to-end run on the fixture.
 
 ## Things to settle during implementation
 
@@ -206,5 +264,6 @@ Dependencies: `langgraph`, `langchain`, `langchain-core`, `httpx`, `lxml`, `pyda
 ## Verification
 
 - `poetry run pytest`: version ordering and stable filter, POM read/edit (direct version, property version, shared property, no version, parent, BOM import), metadata client for both sources, Maven log parsing, failure classification on each recorded log, preflight refusing a dirty tree, LLM factory building the right class per provider (and a clear error when an extra is missing), API keys redacted, config validation (bad values, `data_dir` inside the project), prompt override and fallback plus the missing-placeholder error, session folder contents and a report rebuilt from a recorded `events.jsonl`.
+- Extraction tests with a fake chat model: tool calls are confined to the project; output is parsed into the `Dependency` schema; malformed output is retried once, then stops the run; an entry `pom.py` can't locate is recorded as "could not apply".
 - Graph tests with a fake chat model: nothing outdated; build passes first time; fails then repaired; attempts exhausted and deferred with a report; environment failure deferred with no LLM call; LLM-introduced bad artifact goes back to the agent; LLM reverting a version is caught by the guard.
-- End to end: `poetry run java-upgrade-agent run tests/fixtures/sample-boot-app --config tests/fixtures/central.toml` against real Maven Central; check the report and that `git restore .` in the fixture returns it to the starting state. Repeat the repair path with at least one cloud provider and one Ollama model that supports tools.
+- End to end: `poetry run java-upgrade-agent run tests/fixtures/sample-boot-app --config tests/fixtures/central.toml` against real Maven Central; check `dependencies.json` against the fixture's POMs by hand, the report, and that `git restore .` in the fixture returns it to the starting state. Repeat the repair path with at least one cloud provider and one Ollama model that supports tools.
