@@ -1,0 +1,31 @@
+# Java upgrade agent configuration. Copy to config.toml and edit.
+# Run:  python -m java_upgrade_agent <path-to-maven-project> --config config.toml
+# python -m java_upgrade_agent C:\Users\Home\Desktop\agents --config config.toml
+
+[repository]
+type = "central"          # Maven Central (Artifactory connector: TODO)
+
+[llm]
+# Pick one provider and set the model id from that provider.
+#provider = "anthropic"    # anthropic | openai | google | ollama
+#model = "claude-sonnet-5-5"
+temperature = 0
+# max_tokens = 8192
+# timeout = 120            # seconds
+# api_key = ""             # leave unset to use ANTHROPIC_API_KEY / OPENAI_API_KEY / GOOGLE_API_KEY
+
+# --- Ollama (local) ---
+provider = "ollama"
+model = "nemotron-3-nano:4b"       # any local model that supports tool calling
+base_url = "http://localhost:11434"
+
+# --- OpenAI ---
+# provider = "openai"
+# model = "<openai model id>"
+
+# --- Google Gemini ---
+# provider = "google"
+# model = "<gemini model id>"
+
+[agent]
+max_retries = 3           # repair attempts after the post-upgrade build fails

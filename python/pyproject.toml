@@ -1,0 +1,26 @@
+[project]
+name = "agentic-java-upgrader"
+version = "0.1.0"
+description = "to upgrade java application dependencies"
+authors = [
+    {name = "avinash",email = "avinash92c@gmail.com"}
+]
+requires-python = ">=3.11,<3.15"
+dependencies = [
+    "langchain-ollama (>=1.1.0,<2.0.0)",
+    "langgraph (>=1.1.10,<2.0.0)",
+    "langchain-community (>=0.4.1,<0.5.0)",
+    "langchain (>=1.2.18,<2.0.0)",
+    "langchain-google-genai (>=4.4.2,<5.0.0)",
+    "langchain-anthropic (>=1.7.6,<2.0.0)",
+    "langchain-openai (>=1.7.2,<2.0.0)",
+    "grandalf (>=0.8,<0.9)",
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [{ include = "java_upgrade_agent", from = "src" }]
