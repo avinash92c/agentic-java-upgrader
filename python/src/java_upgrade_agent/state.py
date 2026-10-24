@@ -38,12 +38,18 @@ class AgentState(TypedDict, total=False):
     # inputs
     project_dir: str
     max_retries: int
+    hints_file: str  # migration_hints.yaml: fixes verified by a build, reused in later runs
+    pending_hint: dict | None  # the last round's fix, recorded if the next build no longer shows its error
 
     # preflight and baseline
     preflight_ok: bool
     is_git_repo: bool
+    java_update: dict | None  # {from, to, files} when the Java version was updated at preflight
     baseline_ok: bool
     baseline_log: str
+    baseline_skipped: bool  # True after a Java version update (old code may need repair first)
+    baseline_sources: dict[str, str]  # {"group:artifact": version} of dependency sources before the upgrades
+    current_sources: dict[str, str]  # the same after the latest build that got past the POM stage
 
     # dependency extraction and the upgrade loop
     extraction_ok: bool
@@ -62,7 +68,9 @@ class AgentState(TypedDict, total=False):
     build_ok: bool
     build_log: str  # output of the latest build
     failure_kind: FailureKind | None
-    attempts: int
+    attempts: int  # repair rounds so far (one issue per round)
+    issue_tries: dict[str, int]  # {issue key: tries}; an issue is set aside after max_retries tries
+    last_issue_keys: list[str]  # issues at the previous repair round, to log what was fixed or appeared
     repair_history: list[dict]  # [{attempt, errors_before, summary, edits, restored}]
 
     # outcome

@@ -1,8 +1,10 @@
-"""Library inspection tools: the real API of an upgraded artifact, from its JAR and sources JAR."""
+"""Library inspection tools: an artifact's POM (managed dependencies), and its real API from the JAR and sources JAR."""
 
+import re
 import shutil
 import subprocess
 import tempfile
+import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 
@@ -29,7 +31,61 @@ def _jar(source: MavenCentralSource, group: str, artifact: str, version: str, cl
     return cached
 
 
+def _child(element: ET.Element, tag: str) -> str:
+    found = element.find(f"{{*}}{tag}")
+    return found.text.strip() if found is not None and found.text else ""
+
+
+def describe_pom(text: str) -> str:
+    """A compact summary of a POM: parent, managed dependencies (versions resolved from its own
+    properties where possible) and the BOMs it imports."""
+    root = ET.fromstring(text)
+    props = {}
+    section = root.find("{*}properties")
+    for prop in section if section is not None else []:
+        if isinstance(prop.tag, str) and prop.text:
+            props[prop.tag.split("}")[-1]] = prop.text.strip()
+    props["project.version"] = _child(root, "version")
+
+    def resolve(value: str) -> str:
+        return re.sub(r"\$\{([^}]+)\}", lambda m: props.get(m.group(1), m.group(0)), value)
+
+    lines = [f"{_child(root, 'groupId')}:{_child(root, 'artifactId')}:{_child(root, 'version')}"]
+    parent = root.find("{*}parent")
+    if parent is not None:
+        lines.append(f"parent: {_child(parent, 'groupId')}:{_child(parent, 'artifactId')}:{_child(parent, 'version')}")
+    managed = root.findall("{*}dependencyManagement/{*}dependencies/{*}dependency")
+    imports = [d for d in managed if _child(d, "scope") == "import"]
+    others = [d for d in managed if _child(d, "scope") != "import"]
+    if imports:
+        lines.append("imported BOMs:")
+        lines += [f"  {_child(d, 'groupId')}:{_child(d, 'artifactId')}:{resolve(_child(d, 'version'))}" for d in imports]
+    lines.append(f"managed dependencies ({len(others)}):")
+    lines += [f"  {resolve(_child(d, 'groupId'))}:{_child(d, 'artifactId')}:{resolve(_child(d, 'version'))}"
+              for d in others]
+    return "\n".join(lines)
+
+
 def make_library_tools(source: MavenCentralSource) -> list[BaseTool]:
+    @tool
+    def read_artifact_pom(group: str, artifact: str, version: str) -> str:
+        """Read the POM of a published artifact, typically a parent or BOM (e.g. spring-boot-starter-parent,
+        spring-boot-dependencies, spring-ai-bom), and list the dependencies it manages and the BOMs it imports.
+
+        Use it to find out whether an upgraded parent/BOM still manages a dependency, and under which
+        name and version. A parent such as spring-boot-starter-parent usually manages nothing itself:
+        follow its `parent:` line (e.g. spring-boot-dependencies) to see the managed list.
+        """
+        relative = f"{group.replace('.', '/')}/{artifact}/{version}/{artifact}-{version}.pom"
+        try:
+            text = source.fetch(relative).decode("utf-8", errors="replace")
+        except VersionLookupError as e:
+            return f"error: could not get {artifact}-{version}.pom: {e.reason}"
+        try:
+            return describe_pom(text)[:MAX_OUTPUT]
+        except ET.ParseError:
+            return f"error: {artifact}-{version}.pom is not valid XML"
+
     @tool
     def inspect_class(group: str, artifact: str, version: str, fqcn: str) -> str:
         """Show the public and protected members of a class as compiled in a specific artifact version
@@ -66,4 +122,4 @@ def make_library_tools(source: MavenCentralSource) -> list[BaseTool]:
         except zipfile.BadZipFile:
             return f"error: {jar.name} is not a valid jar"
 
-    return [inspect_class, read_library_docs]
+    return [read_artifact_pom, inspect_class, read_library_docs]

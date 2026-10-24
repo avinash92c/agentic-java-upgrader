@@ -2,7 +2,7 @@
 
 from langgraph.graph import END, START, StateGraph
 
-from . import nodes
+from . import nodes, repair
 from .state import AgentState
 
 
@@ -21,7 +21,8 @@ def after_extraction(state: AgentState) -> str:
 def after_next_dependency(state: AgentState) -> str:
     if state.get("current") is not None:
         return "find_versions"
-    return "build" if state.get("applied") else "report"
+    # Build when something changed: upgrades, or a Java version update (whose baseline build was skipped).
+    return "build" if state.get("applied") or state.get("java_update") else "report"
 
 
 def after_find_versions(state: AgentState) -> str:
@@ -35,10 +36,14 @@ def after_build(state: AgentState) -> str:
 
 
 def after_classify(state: AgentState) -> str:
+    """Repair while some issue in the build log still has tries left (max_retries per issue), up to
+    MAX_REPAIR_ROUNDS rounds in total; otherwise hand over to the user."""
     if state.get("failure_kind") == "environment":
         return "defer_to_user"
-    attempts_left = state.get("attempts", 0) < state.get("max_retries", 3)
-    return "repair_agent" if attempts_left else "defer_to_user"
+    if state.get("attempts", 0) >= nodes.MAX_REPAIR_ROUNDS:
+        return "defer_to_user"
+    issue = repair.next_issue(state.get("build_log", ""), state.get("issue_tries", {}), state.get("max_retries", 3))
+    return "repair_agent" if issue else "defer_to_user"
 
 
 def build_graph():

@@ -1,31 +1,50 @@
-# Java upgrade agent configuration. Copy to config.toml and edit.
-# Run:  python -m java_upgrade_agent <path-to-maven-project> --config config.toml
-# python -m java_upgrade_agent C:\Users\Home\Desktop\agents --config config.toml
+# Java upgrade agent configuration.
+# Run (from the python folder):
+#   poetry run python -m java_upgrade_agent C:\Users\Home\Desktop\Test\agents --config config.toml -v --log-file run.log
+
+#Before the first run, in a normal PowerShell window:
+#where.exe claude          # must print a path; if not, use the commented `command = [...]` line with the full path
+#claude                    # once, to log in; then exit
+#Then run the agent:
+#cd D:\Dev\workspaces\vscode\agentic-java-upgrader\python
+#poetry run python -m java_upgrade_agent C:\Users\Home\Desktop\Test\agents --config config.toml -v --log-file run.log
+#At start, the log should show start: consultant Claude Code (claude -p …), asked for every issue. During repair, look for consultant: asking Claude Code …, followed by its answer.
 
 [repository]
 type = "central"          # Maven Central (Artifactory connector: TODO)
 
+# Local model: version selection, and applying the fixes in the repair loop.
 [llm]
-# Pick one provider and set the model id from that provider.
-#provider = "anthropic"    # anthropic | openai | google | ollama
-#model = "claude-sonnet-5-5"
-temperature = 0
-# max_tokens = 8192
-# timeout = 120            # seconds
-# api_key = ""             # leave unset to use ANTHROPIC_API_KEY / OPENAI_API_KEY / GOOGLE_API_KEY
-
-# --- Ollama (local) ---
 provider = "ollama"
-model = "nemotron-3-nano:4b"       # any local model that supports tool calling
+model = "qwen3:8b"
 base_url = "http://localhost:11434"
+temperature = 0
+timeout = 180                                    # seconds; a stuck call fails instead of waiting forever
+max_tokens = 4096                                # caps output (Ollama num_predict); repair edits need room
+extra = { reasoning = false, num_ctx = 16384 }   # thinking off; context large enough for repair
 
-# --- OpenAI ---
-# provider = "openai"
-# model = "<openai model id>"
+# Claude Code on the command line (your subscription login, no API key): asked how to fix each build
+# issue. It runs read-only in the project folder (reads files, may search the web) and returns advice;
+# the local model above turns that advice into the edits the agent applies.
+# Needs `claude` installed and logged in once (run `claude` interactively).
+[consultant]
+preset = "claude"           # runs: claude -p --output-format text --max-turns 10 --allowedTools Read,Grep,Glob,WebSearch,WebFetch
+name = "Claude Code"        # shown in logs, the report and the hints file
+when = "always"             # every repair round; "after_first_try" = only after the local model failed once
+timeout = 300               # seconds per question
+# If `claude` isn't found on PATH, give the full path instead of the preset, e.g.:
+# command = ["C:\Users\Home\.local\bin\claude.exe", "-p", "--output-format", "text", "--max-turns", "10",
+#            "--allowedTools", "Read,Grep,Glob,WebSearch,WebFetch"]
 
-# --- Google Gemini ---
-# provider = "google"
-# model = "<gemini model id>"
+# Optional, not used now: a model through an API that applies the fixes instead of [llm].
+# [repair_llm]
+# provider = "google"       # anthropic | openai | google | ollama
+# model = "gemini-3-flash-preview"
+# temperature = 0
+# timeout = 180
+# max_tokens = 8192
+# (API key from GOOGLE_API_KEY / ANTHROPIC_API_KEY / OPENAI_API_KEY)
 
 [agent]
-max_retries = 3           # repair attempts after the post-upgrade build fails
+max_retries = 3           # tries per build issue in the repair loop
+hints_file = "~/.java-upgrade-agent/migration_hints.yaml"   # fixes verified by a build, reused in later runs

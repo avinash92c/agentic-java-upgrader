@@ -1,4 +1,4 @@
-"""Version selection: code fetches the published versions, one LLM call picks the newest stable one."""
+"""Version selection: code fetches the published versions; one LLM call picks the newest stable one."""
 
 import json
 from typing import Literal

@@ -101,6 +101,34 @@ class MavenCentralSource(VersionSource):
             raise VersionLookupError("not found" if response.status_code == 404 else f"HTTP {response.status_code}")
         return response.content
 
+    SEARCH_URL = "https://search.maven.org/solrsearch/select"
+
+    def artifacts_with_class(self, fqcn: str, rows: int = 200) -> list[tuple[str, list[str]]]:
+        """Artifacts on Maven Central that contain the class `fqcn` (Maven Central's class search), as
+        [("group:artifact", [versions seen])]. Artifacts whose groupId matches the class's package come
+        first (javax.annotation:* for javax.annotation.Resource), then those with the most versions.
+        Empty on any error."""
+        params = {"q": f'fc:"{fqcn}"', "rows": rows, "wt": "json"}
+        log.info("maven central: class search %s?q=fc:\"%s\"", self.SEARCH_URL, fqcn)
+        try:
+            response = self._client.get(self.SEARCH_URL, params=params)
+            docs = response.json().get("response", {}).get("docs", []) if response.status_code == 200 else []
+        except (httpx.HTTPError, ValueError) as e:
+            log.warning("maven central: class search failed: %s", e)
+            return []
+        found: dict[str, list[str]] = {}
+        for doc in docs:
+            if doc.get("g") and doc.get("a"):
+                found.setdefault(f"{doc['g']}:{doc['a']}", []).append(doc.get("v", "?"))
+        log.info("maven central: %d artifact(s) contain %s", len(found), fqcn)
+        package = fqcn.rsplit(".", 1)[0]
+
+        def rank(item: tuple[str, list[str]]):
+            group = item[0].split(":")[0]
+            return (not (package.startswith(group) or group.startswith(package)), -len(item[1]))
+
+        return sorted(found.items(), key=rank)
+
     def close(self) -> None:
         self._client.close()
 

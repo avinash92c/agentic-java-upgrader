@@ -187,6 +187,85 @@ class ProjectPoms:
             path = self.parent_path(path)
         return None
 
+    def rename_artifact(self, group: str, old: str, new: str) -> list[str]:
+        """Replace <artifactId>old</artifactId> with `new` in every <dependency> of `group`.
+        Only those characters change. Returns the paths of the POMs that were edited."""
+        edited = []
+        for path in list(self.texts):
+            text = self.texts[path]
+            blocks = [b for b in BLOCK.finditer(text) if b.group(1) == "dependency"]
+            for block in reversed(blocks):  # from the end, so earlier offsets stay valid
+                body, body_start = block.group(2), block.start(2)
+                a, g = _tag("artifactId").search(body), _tag("groupId").search(body)
+                if a and g and a.group(1) == old and self.resolve(g.group(1), path) == group:
+                    text = text[: body_start + a.start(1)] + new + text[body_start + a.end(1):]
+            if text != self.texts[path]:
+                with open(self.dir / path, "w", encoding="utf-8", newline="") as f:
+                    f.write(text)
+                self.texts[path] = text
+                edited.append(path)
+        return edited
+
+    def pom_for(self, java_file: Path) -> str:
+        """The POM of the module a source file belongs to (the nearest pom.xml above it in the project)."""
+        root = self.dir.resolve()
+        folder = java_file.resolve().parent
+        while folder.is_relative_to(root):
+            rel = (folder / "pom.xml").relative_to(root).as_posix()
+            if rel in self.texts:
+                return rel
+            if folder == root:
+                break
+            folder = folder.parent
+        return "pom.xml"
+
+    def add_dependency(self, path: str, group: str, artifact: str, version: str = "", scope: str = "") -> str:
+        """Add a <dependency> to the POM's project-level <dependencies> (created if missing), using the file's
+        own indentation; nothing else in the file changes. Returns what was done, for logs and reports."""
+        root = ET.fromstring(self.texts[path])  # the current text: earlier additions count too
+        for dep in root.findall("{*}dependencies/{*}dependency"):
+            if self.resolve(_text(dep, "groupId"), path) == group and _text(dep, "artifactId") == artifact:
+                return f"{group}:{artifact} is already declared in {path}"
+        text = self.texts[path]
+        newline = "\r\n" if "\r\n" in text else "\n"
+        # Spans where a <dependencies> element is not the project-level one.
+        nested = [m.span() for m in re.finditer(r"<(dependencyManagement|profiles|build|reporting)\b.*?</\1>", text, re.S)]
+        block = next((m for m in re.finditer(r"<dependencies>(.*?)</dependencies>", text, re.S)
+                      if not any(s <= m.start() < e for s, e in nested)), None)
+
+        def indent_of(position: int) -> str:
+            line_start = text.rfind("\n", 0, position) + 1
+            return re.match(r"[ \t]*", text[line_start:]).group(0)
+
+        unit = "\t" if "\n\t<" in text else "    "
+        if block is not None:
+            close = block.end() - len("</dependencies>")
+            outer = indent_of(close)
+        else:
+            close = text.rindex("</project>")
+            outer = indent_of(close) + unit
+        inner, field = outer + unit, outer + unit + unit
+        lines = [f"{inner}<dependency>", f"{field}<groupId>{group}</groupId>", f"{field}<artifactId>{artifact}</artifactId>"]
+        if version:
+            lines.append(f"{field}<version>{version}</version>")
+        if scope:
+            lines.append(f"{field}<scope>{scope}</scope>")
+        lines.append(f"{inner}</dependency>")
+        snippet = newline.join(lines)
+        if block is not None:  # before </dependencies>, after the last entry
+            line_start = text.rfind("\n", 0, close) + 1
+            text = text[:line_start] + snippet + newline + text[line_start:]
+        else:  # a new <dependencies> section before </project>
+            line_start = text.rfind("\n", 0, close) + 1
+            section = f"{outer}<dependencies>{newline}{snippet}{newline}{outer}</dependencies>{newline}"
+            text = text[:line_start] + section + text[line_start:]
+        with open(self.dir / path, "w", encoding="utf-8", newline="") as f:
+            f.write(text)
+        self.texts[path] = text
+        self.trees[path] = ET.fromstring(text)
+        coordinates =":".join(x for x in (group, artifact, version) if x) + (f" ({scope})" if scope else "")
+        return f"added dependency {coordinates} to {path}"
+
     def write(self, location: Location, value: str) -> None:
         text = self.texts[location.path]
         text = text[: location.start] + value + text[location.end :]

@@ -8,7 +8,7 @@ names some settings differently.
 from typing import Any, Callable, Literal
 
 from langchain_core.language_models import BaseChatModel
-from pydantic import BaseModel, SecretStr, field_validator
+from pydantic import BaseModel, SecretStr
 
 Provider = Literal["anthropic", "openai", "google", "ollama"]
 
@@ -24,13 +24,6 @@ class LLMSettings(BaseModel):
     api_key: SecretStr | None = None  # cloud providers; falls back to the provider's env var
     base_url: str | None = None  # Ollama server, or an OpenAI-compatible endpoint
     extra: dict[str, Any] = {}  # passed to the chat model as-is
-
-    @field_validator("model")
-    @classmethod
-    def model_not_blank(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("llm.model must be set, e.g. the model id from your provider")
-        return value.strip()
 
 
 def _set(kwargs: dict[str, Any], name: str, value: Any) -> None:

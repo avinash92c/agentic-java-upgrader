@@ -27,5 +27,27 @@ base_url = "http://localhost:11434"
 # provider = "google"
 # model = "<gemini model id>"
 
+# Optional: a second, stronger model used only for repairing the build (compile and POM errors).
+# Frontier models usually know recent library changes; [llm] above handles everything else.
+# Same fields as [llm]. Leave the section out to use [llm] for repair too.
+# [repair_llm]
+# provider = "anthropic"          # anthropic | openai | google | ollama
+# model = "claude-sonnet-5-5"
+# temperature = 0
+# timeout = 180
+# max_tokens = 8192
+# (API key: ANTHROPIC_API_KEY / OPENAI_API_KEY / GOOGLE_API_KEY, or api_key = "...")
+
+# Optional: an AI command-line tool you already use (subscription login, no API key needed) is asked how
+# to fix a build issue. It runs read-only in the project folder (reads files, may search the web) and only
+# gives advice; the agent's model applies the fix. The prompt is sent on stdin.
+# [consultant]
+# preset = "claude"               # claude (Claude Code) | gemini (Gemini CLI) | codex (OpenAI Codex CLI)
+# command = ["C:/path/to/mycli", "--some-flag"]   # or any other CLI; overrides preset
+# name = "Claude Code"            # shown in logs, the report and the hints file
+# when = "always"                 # every repair round (default), or "after_first_try"
+# timeout = 300                   # seconds per question
+
 [agent]
-max_retries = 3           # repair attempts after the post-upgrade build fails
+max_retries = 3           # tries per build issue in the repair loop
+# hints_file = "~/.java-upgrade-agent/migration_hints.yaml"   # fixes verified by a build, reused in later runs

@@ -1,0 +1,176 @@
+- signature: 'error: package jakarta.annotation does not exist'
+  kind: dependency
+  library: package jakarta.annotation
+  versions: {}
+  fix: 'The file `StudentServiceImpl.java` does not exist in the project. Since there is no such file, there is no need to
+    change the import statement in it. The only necessary change was adding the `jakarta.annotation-api` dependency to the
+    `pom.xml` and updating the import in `StudentAction.java` to use `jakarta.annotation.Resource`. ### Summary: - **Dependency
+    Added**: `jakarta.annotation:jakarta.annotation-api:3.0.0` - **Imports Changed**: `import jakarta.annotation.Resource;`
+    in `StudentAction.java` - **Reason**: The `jakarta.annotation` package is no longer part of the JDK since Java 11, so
+    it n'
+  changes:
+  - edited pom.xml
+  source: Claude Code advice, applied by ollama/qwen3:8b
+  verified: build
+  date: '2026-10-24'
+- signature: 'error: package org.apache.struts2 does not exist'
+  kind: dependency
+  library: package org.apache.struts2
+  versions: {}
+  fix: '[LLM] The error occurs because the `struts2-core` dependency is no longer transitively provided by `struts2-spring-plugin`
+    in version 7.4.0. The `struts2-core` must be explicitly added with the same version property as used for `struts2-spring-plugin`
+    to ensure the `org.apache.struts2` package is available on the compile classpath.'
+  changes:
+  - added dependency org.apache.struts:struts2-core:${struts-version} to pom.xml
+  source: Claude Code advice, applied by ollama/qwen3:8b
+  verified: build
+  date: '2026-10-24'
+- signature: 'error: package javax.annotation does not exist'
+  kind: dependency
+  library: package javax.annotation
+  versions: {}
+  fix: '[LLM] The `javax.annotation` package was removed in Java 11 and replaced with `jakarta.annotation` in Jakarta EE.
+    The project uses Spring 7, which is built on Jakarta EE, so the import should be changed from `javax.annotation.Resource`
+    to `jakarta.annotation.Resource`. The required dependency `jakarta.annotation:jakarta.annotation-api` is already present
+    in the pom.xml.'
+  changes:
+  - 'StudentServiceImpl.java: `import javax.annotation.Resource;` -> `import jakarta.annotation.Resource;`'
+  source: Claude Code advice, applied by ollama/qwen3:8b
+  verified: build
+  date: '2026-10-24'
+- signature: 'Failed to execute goal org.apache.maven.plugins:maven-war-plugin:2.2:war (default-war) on project spring: Execution
+    default-war of goal org.apache.maven.plugins:maven-war-plugin:2.2:war failed: Unable to load the mojo ''war'' in the plugin
+    ''org.apache.maven.plugins:maven-war-plugin:2.2'' due to an API incompatibility: org.codehaus.plexus.component.repository.exception.ComponentLookupException:
+    Cannot access defaults field of Properties'
+  kind: other
+  library: unknown
+  versions: {}
+  fix: 'The error was caused by using an outdated version of the `maven-war-plugin` (2.2) which is incompatible with Java
+    17. The solution was to update the plugin version to 3.4.0 in the `pom.xml` file. ### Summary: - **Changed:** The version
+    of the `maven-war-plugin` from `2.2` to `3.4.0` in the `pom.xml` file. - **File:** `pom.xml` - **Reason:** The old version
+    of the plugin is incompatible with Java 17, causing the build to fail. Upgrading the plugin resolves the issue.'
+  changes:
+  - edited pom.xml
+  source: Claude Code advice, applied by ollama/qwen3:8b
+  verified: build
+  date: '2026-10-24'
+- signature: '''dependencies.dependency.version'' for org.springframework.ai:spring-ai-advisors-vector-store:jar is missing.'
+  kind: pom
+  library: org.springframework.ai:spring-ai-advisors-vector-store
+  versions:
+    from: 1.1.5
+    to: '?'
+  fix: '[LLM] The artifactId was renamed in Spring AI 2.0. The correct artifactId is ''spring-ai-vector-store-advisor'', and
+    the version is managed by the spring-ai-bom 2.0.2. The version tag can be removed.'
+  changes:
+  - 'pom.xml: `<artifactId>spring-ai-advisors-vector-store</artifactId>` -> `<artifactId>spring-ai-vector-store-advisor</artifactId>`'
+  source: Claude Code advice, applied by ollama/qwen3:8b
+  verified: build
+  date: '2026-10-24'
+- signature: '''dependencies.dependency.version'' for org.springframework.ai:spring-ai-advisors-vector-store:jar is missing.'
+  kind: pom
+  library: org.springframework.ai:spring-ai-advisors-vector-store
+  versions:
+    from: 1.1.5
+    to: '?'
+  fix: '[LLM] The artifactId `spring-ai-advisors-vector-store` was renamed to `spring-ai-vector-store-advisor` in Spring AI
+    2.0. The version is managed by the `spring-ai-bom` 2.0.2, so the version tag can be removed.'
+  changes:
+  - 'pom.xml:47: line(s) -> `<artifactId>spring-ai-vector-store-advisor</artifactId>`'
+  source: Claude Code advice, applied by ollama/qwen3:8b
+  verified: build
+  date: '2026-10-24'
+- signature: 'cannot find symbol | symbol: method toolNames(java.lang.String) | location: class org.springframework.ai.google.genai.GoogleGenAiChatOptions.Builder'
+  kind: code
+  library: org.springframework.ai:spring-ai-google-genai
+  versions:
+    from: 1.1.5
+    to: 2.0.2
+  fix: '[LLM] The `toolNames` method was removed in Spring AI 2.0. The fix involves deleting the `toolNames` calls from the
+    specified files and adjusting the code to use the new tool registration mechanism.'
+  changes:
+  - 'CalculatorAgent.java:84: line(s) -> deleted'
+  - 'ToolController.java:56: line(s) -> deleted'
+  - 'QueryAgent.java:198: line(s) -> `GoogleGenAiChatOptions build = GoogleGenAiChatOptions.builder().temperature(0.0).build();`'
+  source: Claude Code advice, applied by ollama/qwen3:8b
+  verified: build
+  date: '2026-10-24'
+- signature: '''dependencies.dependency.version'' for org.springframework.ai:spring-ai-advisors-vector-store:jar is missing.'
+  kind: pom
+  library: org.springframework.ai:spring-ai-advisors-vector-store
+  versions:
+    from: 1.1.5
+    to: '?'
+  fix: '[LLM] The artifact `spring-ai-advisors-vector-store` was renamed to `spring-ai-vector-store-advisor` in Spring AI
+    2.0. The version is now managed by the `spring-ai-bom` 2.0.2, so the version tag can be removed.'
+  changes:
+  - 'pom.xml:45-48: line(s) -> `<dependency> <groupId>org.springframework.ai</groupId> <artifactId>spring-ai-vector-store-advisor</artifactId>
+    </dependency>`'
+  source: Claude Code advice, applied by ollama/qwen3:8b
+  verified: build
+  date: '2026-10-24'
+- signature: 'cannot find symbol | symbol: method toolNames(java.lang.String) | location: class org.springframework.ai.google.genai.GoogleGenAiChatOptions.Builder'
+  kind: code
+  library: org.springframework.ai:spring-ai-google-genai
+  versions:
+    from: 1.1.5
+    to: 2.0.2
+  fix: '[LLM] The `toolNames` method was removed in Spring AI 2.0. The fix involves deleting the `toolNames` call from the
+    specified file since tools are already registered via `defaultTools(this)` on the `ChatClient`.'
+  changes:
+  - 'CalculatorAgent.java:84: line(s) -> deleted'
+  source: Claude Code advice, applied by ollama/qwen3:8b
+  verified: build
+  date: '2026-10-24'
+- signature: 'cannot find symbol | symbol: method toolNames(java.util.HashSet<java.lang.String>) | location: class org.springframework.ai.google.genai.GoogleGenAiChatOptions.Builder'
+  kind: code
+  library: org.springframework.ai:spring-ai-google-genai
+  versions:
+    from: 1.1.5
+    to: 2.0.2
+  fix: '[LLM] The method `toolNames` was replaced by `toolNames` in the `GoogleGenAiChatOptions.Builder` class in the upgraded
+    version. The code was using the correct method name, but the error suggests a missing dependency or version mismatch.
+    Adding the `spring-ai` dependency with the correct version resolves the issue.'
+  changes:
+  - added dependency org.springframework.ai:spring-ai:2.0.2 to pom.xml
+  - 'QueryAgent.java:198: line(s) -> `GoogleGenAiChatOptions build = GoogleGenAiChatOptions.builder().temperature(0.0).toolNames(hashSet).build();`'
+  source: ollama/qwen3:8b
+  verified: build
+  date: '2026-10-24'
+- signature: 'Failed to execute goal on project agents: Could not resolve dependencies for project com.springai:agents:jar:0.0.1-SNAPSHOT'
+  kind: pom
+  library: unknown
+  versions: {}
+  fix: '[LLM] The dependency `org.springframework.ai:spring-ai:2.0.2` is invalid as Spring AI does not publish an artifact
+    with this coordinate. It should be removed to resolve the dependency resolution error.'
+  changes:
+  - 'pom.xml:115-119: line(s) -> deleted'
+  source: Claude Code advice, applied by ollama/qwen3:8b
+  verified: build
+  date: '2026-10-24'
+- signature: 'cannot find symbol | symbol: method toolNames(java.util.HashSet<java.lang.String>) | location: class org.springframework.ai.google.genai.GoogleGenAiChatOptions.Builder'
+  kind: code
+  library: org.springframework.ai:spring-ai-google-genai
+  versions:
+    from: 1.1.5
+    to: 2.0.2
+  fix: '[LLM] The `toolNames` method was removed in Spring AI 2.0.2. The `toolNames` call in the code is no longer needed
+    because the tools are already registered via `defaultTools(this)`. Removing the `toolNames` call fixes the error.'
+  changes:
+  - 'QueryAgent.java:198: line(s) -> `GoogleGenAiChatOptions build = GoogleGenAiChatOptions.builder().temperature(0.0).build();`'
+  source: Claude Code advice, applied by ollama/qwen3:8b
+  verified: build
+  date: '2026-10-24'
+- signature: 'cannot find symbol | symbol: method toolName(java.lang.String) | location: class org.springframework.ai.google.genai.GoogleGenAiChatOptions.Builder'
+  kind: code
+  library: org.springframework.ai:spring-ai-google-genai
+  versions:
+    from: 1.1.5
+    to: 2.0.2
+  fix: '[LLM] The `toolName` method was removed in Spring AI 2.0. The tool is already registered via `defaultTools(this)`,
+    so the `toolName` call can be deleted.'
+  changes:
+  - 'ToolController.java:56: line(s) -> deleted'
+  source: Claude Code advice, applied by ollama/qwen3:8b
+  verified: build
+  date: '2026-10-24'
