@@ -18,6 +18,8 @@ An agent that upgrades the dependencies of a Maven (Java) project to their newes
 
 ## Features
 
+For every LLM tool and code function the agent uses, and what each one does, see [TOOLS.md](TOOLS.md).
+
 ### Dependencies and versions
 - Reads single and multi-module projects (standard layout: modules listed under `<modules>`, each with its own `pom.xml`).
 - Collects the parent POM, BOM imports, versioned `<dependencyManagement>` entries and versioned dependencies. Versions written as `${property}` are resolved through the POM and its parents. The project's own modules, plugins and profiles are skipped.
@@ -119,12 +121,13 @@ To undo the changes in a Git repo: `git restore .` (and `git clean -fd` for file
 - Tests.
 - Gradle projects.
 
-The design and decisions are in [plan.md](plan.md); the implementation checklist is in [CHECKLIST.md](CHECKLIST.md).
+The design and decisions are in [plan.md](plan.md); the implementation checklist is in [CHECKLIST.md](CHECKLIST.md); the tools and functions are listed in [TOOLS.md](TOOLS.md).
 
 ## Repository layout
 
 ```
 plan.md, CHECKLIST.md              design, decisions and checklist
+TOOLS.md                           LLM tools and code functions, and what each one does
 agent-flow-v1.drawio / .png        flow diagram
 compile-fix-search-notes.md        notes on the compile-fix search
 python/                            the agent (Python, Poetry)
