@@ -6,7 +6,8 @@ An agent that upgrades the dependencies of a Maven (Java) project to their newes
 
 ## Credits
 Designed And Developed by 
-@avinash92c and @rahulneon
+- [rahulneon](https://github.com/rahulneon)
+- [avinash92c](https://github.com/avinash92c)
 
 ## How it works
 
