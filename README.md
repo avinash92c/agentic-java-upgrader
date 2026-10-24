@@ -4,6 +4,10 @@ An agent that upgrades the dependencies of a Maven (Java) project to their newes
 
 > **Status: work in progress (v1).** The full flow runs end to end, but it is still being tuned on real projects. Run it only on a copy, or on a Git branch you can revert. See [Current status](#current-status).
 
+## Credits
+Designed And Developed by 
+@avinash92c and @rahulneon
+
 ## How it works
 
 ![Agent flow](agent-flow-v1.png)
